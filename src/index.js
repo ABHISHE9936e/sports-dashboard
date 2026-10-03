@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
-import prisma from './prisma.js';
+import {matchesRouter} from './Routes/matches.js';
+
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -11,7 +12,7 @@ app.get('/', (req, res) => {
   res.send('Server is running on port ' + PORT);
 });
 
-
+app.use('/matches', matchesRouter);
 
 
 app.listen(PORT, () => {
