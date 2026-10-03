@@ -1,0 +1,52 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MatchStatus {
+  SCHEDULED
+  LIVE
+  FINISHED
+}
+
+model Match {
+  id           Int          @id @default(autoincrement())
+  sport        String
+  homeTeam     String
+  awayTeam     String
+  status       MatchStatus
+  startTime    DateTime
+  endTime      DateTime?
+  homeScore    Int          @default(0)
+  awayScore    Int          @default(0)
+  createdAt    DateTime     @default(now())
+  commentaries Commentary[]
+
+  @@index([status])
+  @@index([sport, startTime])
+}
+
+model Commentary {
+  id        Int      @id @default(autoincrement())
+  matchId   Int
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  minute    Int
+  sequence  Int
+  period    String
+  eventType String
+  actor     String
+  team      String
+  message   String
+  metadata  Json
+  tags      String[]
+
+  @@index([matchId])
+  @@index([matchId, minute, sequence])
+}
