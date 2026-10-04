@@ -6,6 +6,7 @@ import {getMatchStatus} from '../utils/match-status.js';
 import {Router} from 'express';
 import { createMatchSchema } from '../../validations/matches.js';
 const prisma = new PrismaClient();
+import { listMatchesQuerySchema } from '../../validations/matches.js';
 
 export const matchesRouter = new Router();
 const Max_limit = 100;
@@ -20,7 +21,7 @@ matchesRouter.get('/', async (req, res) => {
       details: parsedQuery.error.flatten().fieldErrors,
     });
   }
-  const { limit } = req.query;
+  const { limit } = parsedQuery.data;
   
   if (limit && (isNaN(limit) || parseInt(limit) <= 0 || parseInt(limit) > Max_limit)) {
     return res.status(400).json({
