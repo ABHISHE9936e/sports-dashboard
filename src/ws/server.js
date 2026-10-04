@@ -1,4 +1,5 @@
 import { WebSocket, WebSocketServer } from 'ws';
+import { wsArcjet } from '../utils/arcjet.js';
 
 function jsonSend(socket, payload) {
   if (socket.readyState !== WebSocket.OPEN) {
@@ -16,14 +17,30 @@ function broadcast(sockets, payload) {
   }
 }
 
-export default function setupWebSocketServer(server) {
+export default  function setupWebSocketServer(server) {
   const wss = new WebSocketServer({
     server,
     path: '/ws',
     maxPayload: 1024 * 1024 * 10,
   });
 
-  wss.on('connection', (socket) => {
+  wss.on('connection', async (socket, req) => {
+    if(wsArcjet){
+   try {
+      const decision = await wsArcjet.protect(req,{ requested: 1 });
+      if (decision.isDenied()) {
+        const code = decision.reason.isRateLimit() ? 1013 : 1008;
+        const reason = decision.reason.isRateLimit() ? 'rate limit exceeded' : 'access denied';
+        socket.close(code, reason);
+
+        return socket.close(403, 'Request blocked due to security policy');
+      }
+    } catch (error) {
+      console.error('Arcjet protection error:', error);
+      return socket.close(500, 'Failed to process request');
+    }
+   
+    }
     jsonSend(socket, { type: 'WELCOME' });
 
     socket.on('error', (error) => {
