@@ -45,6 +45,9 @@ matchesRouter.get('/', async (req, res) => {
 matchesRouter.post('/', async (req, res) => {
   const parsedData = createMatchSchema.safeParse(req.body);
 
+  console.log("➡️ API Hit: POST /matches");
+  console.log("➡️ Body Data:", req.body);
+
   if (!parsedData.success) {
     return res.status(400).json({
       error: 'Invalid match data',
@@ -70,7 +73,13 @@ matchesRouter.post('/', async (req, res) => {
       },
     });
 if(res.app.locals.broadcastMatchCreated){
+    res.app.locals.broadcastMatchCreated(match);
+    console.log("✅ Server: Calling broadcast function for new match...");
         res.app.locals.broadcastMatchCreated(match);
+}
+else
+{
+   console.log("❌ Server: broadcastMatchCreated function not found in app.locals!");
 }
     return res.status(201).json(match);
   } catch (error) {

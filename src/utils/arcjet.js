@@ -14,12 +14,12 @@ export const httpArcjet = arcjet({
     shield({
       mode: arcjetMode,
     }),
- detectBot({
-       mode: arcjetMode,
+//  detectBot({
+//        mode: arcjetMode,
 
-       allow: ["CATEGORY:SEARCH_ENGINE"], 
+//       allow: ["CATEGORY:SEARCH_ENGINE", "POSTMAN"]
      
-     }),
+//      }),
 slidingWindow({
   mode: arcjetMode,
   interval: "10s",
@@ -35,11 +35,11 @@ export const wsArcjet = arcjet({
     shield({
       mode: arcjetMode,
     }),
-    detectBot({
-      mode: arcjetMode,
-      allow: ["CATEGORY:SEARCH_ENGINE"],
+  //   detectBot({
+  //     mode: arcjetMode,
+  //  allow: ["CATEGORY:SEARCH_ENGINE", "POSTMAN"]
       
-    }),
+  //   }),
     slidingWindow({
       mode: arcjetMode,
       interval: "2s",
@@ -58,6 +58,7 @@ export default async function securityMiddleware(req, res, next) {
     const decision = await httpArcjet.protect(req, { requested: 1 });
 
     if (decision.isDenied()) {
+      console.log('Arcjet blocked HTTP request. Reason:', decision.reason);
       if (decision.reason.isRateLimit()) {
         return res
           .status(429)
@@ -67,6 +68,7 @@ export default async function securityMiddleware(req, res, next) {
       return res
         .status(403)
         .json({ error: "Request blocked due to security policy" });
+        
     }
 
     next();
