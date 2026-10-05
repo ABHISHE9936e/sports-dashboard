@@ -46,6 +46,7 @@ model Commentary {
   message   String
   metadata  Json
   tags      String[]
+  createdAt DateTime @default(now())
 
   @@index([matchId])
   @@index([matchId, minute, sequence])

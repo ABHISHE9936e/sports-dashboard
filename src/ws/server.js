@@ -1,6 +1,47 @@
 import { WebSocket, WebSocketServer } from 'ws';
 import { wsArcjet } from '../utils/arcjet.js';
 
+const matchSub = new Map();
+
+
+function subscribeToMatch(socket, matchId) {
+  if (!socket.matchIds) socket.matchIds = new Set();
+  socket.matchIds.add(matchId);
+
+  if (matchSub.has(matchId)) {
+    matchSub.get(matchId).add(socket);
+  } else {
+    matchSub.set(matchId, new Set([socket]));
+  }
+}
+
+function unsubscribeFromMatch(socket, matchId) {
+  if (socket.matchIds) socket.matchIds.delete(matchId);
+  
+  if (!matchSub.has(matchId)) return;
+  
+  const sub = matchSub.get(matchId);
+  sub.delete(socket);
+  if (sub.size === 0) matchSub.delete(matchId);
+}
+
+function cleanupSocket(socket) {
+  if (!socket.matchIds) return;
+  
+  for(const matchId of socket.matchIds) {
+    unsubscribeFromMatch(socket, matchId);
+  }
+}
+function broadcastToMatch(matchId, payload) {
+  if (!matchSub.has(matchId)) {
+    return;
+  }
+  for (const socket of matchSub.get(matchId)) {
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify(payload));
+    }
+  }
+}
 function jsonSend(socket, payload) {
   if (socket.readyState !== WebSocket.OPEN) {
     console.log('Socket not open');
@@ -9,12 +50,34 @@ function jsonSend(socket, payload) {
   socket.send(JSON.stringify(payload));
 }
 
-function broadcast(sockets, payload) {
+function broadcastToAll(sockets, payload) {
   for (const client of sockets) {
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify(payload));
     }
   }
+}
+function HandleSocketMessage(socket, message) {
+let parsedMessage;
+  try {
+    parsedMessage = JSON.parse(message);
+  } catch (error) {
+    console.error('Failed to parse message:', error);
+    return;
+  }
+
+  if (parsedMessage.type === 'SUBSCRIBE_TO_MATCH') {
+    subscribeToMatch(socket, parsedMessage.data);
+    socket.send(JSON.stringify({ type: 'SUBSCRIBED_TO_MATCH', data: parsedMessage.data }));
+    return;
+  }
+  if (parsedMessage.type === 'UNSUBSCRIBE_FROM_MATCH') {
+    unsubscribeFromMatch(socket, parsedMessage.data);
+    socket.send(JSON.stringify({ type: 'UNSUBSCRIBED_FROM_MATCH', data: parsedMessage.data }));
+    return;
+  }
+  
+
 }
 
 export default function setupWebSocketServer(server) {
@@ -76,24 +139,29 @@ export default function setupWebSocketServer(server) {
   });
 
   wss.on('connection', (socket, req) => {
-    socket.on('error', (error) => {
-      console.error('WebSocket client error:', error);
-    });
-
-    jsonSend(socket, { type: 'WELCOME' });
+   socket.on('message', (message) => {
+     HandleSocketMessage(socket, message);
+   });
+   socket.on('error', (error) => {
+socket.terminate();
+   })
+   socket.on('close', () => {
+      cleanupSocket(socket);
+    
   });
-
-  wss.on('error', (error) => {
-    console.error('WebSocket server error:', error);
-  });
+});
 
   function broadcastMatchCreated(match) {
-    broadcast(wss.clients, { type: 'MATCH_CREATED', data: match });
+    broadcastToAll(wss.clients, { type: 'MATCH_CREATED', data: match });
+  }
+  function broadcastCommentry(matchId, commentary) {
+    broadcastToMatch(matchId, { type: 'COMMENTARY', data: commentary });
   }
 
   return {
     wss,
     broadcastMatchCreated,
-    broadeCastMatchCreated: broadcastMatchCreated,
+    broadcastCommentry,
+
   };
 }
